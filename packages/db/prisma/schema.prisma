@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  STOPPED
+  ARCHIVED
+}
+
+enum CampaignType {
+  OUTBOUND
+  REPLY_FOLLOWUP
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  SHOWED_UP
+  NO_SHOW
+  CANCELLED
+}
+
+enum ConversionStatus {
+  PENDING
+  CONVERTED
+  NOT_CONVERTED
+}
+
+enum SyncSource {
+  EMAILBISON
+  CALENDLY
+}
+
+enum SyncJobStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(MEMBER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  name         String
+  contactEmail String?
+  contactName  String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  campaigns             Campaign[]
+  meetings              Meeting[]
+  publicDashboardTokens PublicDashboardToken[]
+
+  @@map("clients")
+}
+
+model Campaign {
+  id                   String         @id @default(cuid())
+  emailbisonId         Int            @unique
+  name                 String
+  status               CampaignStatus @default(DRAFT)
+  type                 CampaignType   @default(OUTBOUND)
+  totalLeads           Int            @default(0)
+  emailsSent           Int            @default(0)
+  opened               Int            @default(0)
+  replied              Int            @default(0)
+  uniqueReplies        Int            @default(0)
+  bounced              Int            @default(0)
+  interested           Int            @default(0)
+  completionPercentage Float          @default(0)
+  lastSyncedAt         DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+
+  snapshots CampaignSnapshot[]
+
+  @@index([clientId])
+  @@map("campaigns")
+}
+
+model CampaignSnapshot {
+  id                   String   @id @default(cuid())
+  snapshotDate         DateTime @db.Date
+  totalLeads           Int      @default(0)
+  emailsSent           Int      @default(0)
+  opened               Int      @default(0)
+  replied              Int      @default(0)
+  uniqueReplies        Int      @default(0)
+  bounced              Int      @default(0)
+  interested           Int      @default(0)
+  completionPercentage Float    @default(0)
+  createdAt            DateTime @default(now())
+
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, snapshotDate])
+  @@index([snapshotDate])
+  @@map("campaign_snapshots")
+}
+
+model Meeting {
+  id                 String           @id @default(cuid())
+  calendlyEventUri   String?          @unique
+  calendlyInviteeUri String?          @unique
+  inviteeEmail       String
+  inviteeName        String?
+  startTime          DateTime
+  endTime            DateTime?
+  eventTypeName      String?
+  meetingStatus      MeetingStatus    @default(SCHEDULED)
+  conversionStatus   ConversionStatus @default(PENDING)
+  notes              String?
+  utmSource          String?
+  utmMedium          String?
+  utmCampaign        String?
+  utmTerm            String?
+  utmContent         String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  @@index([clientId])
+  @@index([meetingStatus])
+  @@index([inviteeEmail])
+  @@map("meetings")
+}
+
+model PublicDashboardToken {
+  id        String    @id @default(cuid())
+  token     String    @unique @default(cuid())
+  label     String?
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("public_dashboard_tokens")
+}
+
+model SyncJob {
+  id              String        @id @default(cuid())
+  source          SyncSource
+  status          SyncJobStatus @default(RUNNING)
+  campaignsSynced Int           @default(0)
+  errorMessage    String?
+  startedAt       DateTime      @default(now())
+  completedAt     DateTime?
+
+  @@index([source, startedAt])
+  @@map("sync_jobs")
+}
+
+model CalendlyWebhookConfig {
+  id             String   @id @default(cuid())
+  webhookUri     String
+  callbackUrl    String
+  organizationUri String?
+  userUri        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("calendly_webhook_configs")
+}

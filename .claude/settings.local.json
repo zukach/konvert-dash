@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__emailbison__list_campaigns",
+      "mcp__emailbison__get_campaign_stats",
+      "mcp__emailbison__get_campaign",
+      "mcp__emailbison__search_api_spec",
+      "WebSearch",
+      "mcp__emailbison__discover_tools",
+      "WebFetch(domain:developer.calendly.com)",
+      "Bash(npx prisma:*)",
+      "Bash(npx nest:*)"
+    ]
+  }
+}
